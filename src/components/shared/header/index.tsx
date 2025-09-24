@@ -1,5 +1,6 @@
 import Image from 'next/image';
 import { SearchInput } from './components/search-input';
+import { Suspense } from 'react';
 interface Props {}
 
 export function Header({}: Props) {
@@ -13,7 +14,9 @@ export function Header({}: Props) {
         className="rounded-br-2xl rounded-tl-2xl"
         autoFocus
       />
-      <SearchInput />
+      <Suspense fallback={<div className="h-9 w-full" />}>
+        <SearchInput />
+      </Suspense>
     </header>
   );
 }
