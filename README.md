@@ -1,36 +1,54 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Search Page (Notix.Games Test Task)
 
-## Getting Started
+## Что реализовано
 
-First, run the development server:
+- Поле поиска с дебаунсом, поддержкой Enter/Esc.
+- Синхронизация `?q=` в URL (replace без засорения истории).
+- Защита от гонок: `AbortController` + проверка актуальности ответа.
+- UX-состояния: спиннер.
+- Кэш результатов с TTL.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## Архитектура
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- `SearchInput` — контролируемый инпут, debounced ввод, синк с URL.
+- `SearchResults` — таблица.
+- `search()` — API.
+- `useSearchCache()` — простой кэш на `Map` (TTL).
+- Глобальное состояние результатов — через Zustand.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Борьба с гонками
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- Каждый запрос создаёт свой `AbortController`. Перед запуском нового — предыдущий абортируется (экономит сеть).
 
-## Learn More
+## Синхронизация с URL
 
-To learn more about Next.js, take a look at the following resources:
+- При вводе (после дебаунса) `q` пишется в URL через `router.replace`, чтобы не плодить записи в истории.
+- При монтировании начальное значение берётся из `?q=` и запускается поиск.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+**Трейд-офф:** `router.replace(?q=...)` в Next.js App Router триггерит RSC-навигацию (служебный запрос `/?q=...&_rsc=...`). Это ожидаемо. Если нужно избежать этого запроса и страница не зависит от серверных `searchParams`, можно использовать `history.replaceState` (но тогда ответственность за синхронизацию `useSearchParams` и `popstate` на вас).
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## UX-детали
 
-## Deploy on Vercel
+- Дебаунс.
+- Минимум 3 символа (порог включения поиска).
+- Сброс поля, очистка результатов, удаление `?q`.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Ошибки
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `AbortError` игнорируется как штатная отмена.
+
+## Кэш
+
+- Простая `Map<string, {data, ts}>` с TTL (по умолчанию 60 сек).
+- При попадании в кэш возвращаем мгновенно.
+
+## Запуск
+
+- `pnpm i` / `npm i`
+- `pnpm dev` / `npm run dev`
+
+## Что можно было бы развить, но не судьба
+
+- Виртуализация списка для 1k+ результатов.
+- Подсветка совпадений.
+- Тесты на гонки и навигацию (Playwright/Vitest).
